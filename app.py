@@ -796,10 +796,11 @@ if st.session_state.run_analysis:
     # -----------------------------------------------------------------------------
     st.markdown("### 💾 Export")
 
-    # Side-by-side layout so the PNG expander doesn't span the full page width
-    # — st.expander always fills its parent container, so we bound the parent
-    # via a column instead.
-    col_csv, col_png = st.columns([1, 2])
+    # 3-column grid so CSV button and PNG expander each occupy ~1/3 of the
+    # page and the rightmost third stays empty — st.expander always fills
+    # its parent container, so bounding the parent via a column is what
+    # stops it from spanning the full page width.
+    col_csv, col_png, _col_spacer = st.columns([1, 1, 1])
 
     with col_csv:
         # CSV is cheap — always ready
