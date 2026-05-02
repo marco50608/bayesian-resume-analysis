@@ -7,3 +7,4 @@ plotly>=5.18,<6.0
 kaleido==0.2.1
 gspread>=6.0,<7.0
 google-auth>=2.27,<3.0
+matplotlib>=3.7,<4.0
