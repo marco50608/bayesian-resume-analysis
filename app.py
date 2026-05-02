@@ -796,11 +796,15 @@ if st.session_state.run_analysis:
     # -----------------------------------------------------------------------------
     st.markdown("### 💾 Export")
 
-    # 3-column grid so CSV button and PNG expander each occupy ~1/3 of the
-    # page and the rightmost third stays empty — st.expander always fills
-    # its parent container, so bounding the parent via a column is what
-    # stops it from spanning the full page width.
-    col_csv, col_png, _col_spacer = st.columns([1, 1, 1])
+    # CSV button + PNG generator share one row, each occupying 1/3 of the
+    # page width. The third column stays empty.
+    #
+    # Why a button instead of an st.expander for PNG: st.expander's title
+    # is always left-aligned and there is no public API to centre it,
+    # which makes it look mismatched next to the centred-text CSV button.
+    # A regular button has centred text by default and behaves the same
+    # way (one click → generate → show downloads).
+    col_csv, col_png, _spacer = st.columns([1, 1, 1])
 
     with col_csv:
         # CSV is cheap — always ready
@@ -816,53 +820,50 @@ if st.session_state.run_analysis:
     with col_png:
         # PNGs are expensive (kaleido spawns headless Chromium) — lazy-load
         # behind a button. We also key the render cache by a fingerprint so
-        # the same fingerprint never re-renders even if the user toggles the
-        # button off and on.
-        with st.expander("🖼️ Download charts as PNG", expanded=False):
-            st.caption(
-                "Generating PNGs spins up a headless browser and takes ~1–2 seconds. "
-                "Click below only when you actually want to download."
-            )
+        # the same fingerprint never re-renders unnecessarily.
+        png_fp_key = f"png_ready_{current_fp}"
+        if png_fp_key not in st.session_state:
+            st.session_state[png_fp_key] = False
 
-            png_fp_key = f"png_ready_{current_fp}"  # one flag per data fingerprint
-            if png_fp_key not in st.session_state:
-                st.session_state[png_fp_key] = False
+        if not st.session_state[png_fp_key]:
+            if st.button(
+                "🖼️ Download charts as PNG",
+                key=f"gen_png_{current_fp}",
+                use_container_width=True,
+                help="Generates 3 PNGs (PDF, Forest, Survival). Takes ~1–2 seconds.",
+            ):
+                st.session_state[png_fp_key] = True
+                st.rerun()
+        else:
+            try:
+                with st.spinner("Rendering charts…"):
+                    pdf_png_bytes = render_png(fig_pdf.to_json())
+                    forest_png_bytes = render_png(fig_forest.to_json())
+                    surv_png_bytes = render_png(fig_surv.to_json())
 
-            if not st.session_state[png_fp_key]:
-                if st.button("Generate PNG downloads", key=f"gen_png_{current_fp}"):
-                    st.session_state[png_fp_key] = True
-                    st.rerun()
-            else:
-                try:
-                    with st.spinner("Rendering charts…"):
-                        pdf_png_bytes = render_png(fig_pdf.to_json())
-                        forest_png_bytes = render_png(fig_forest.to_json())
-                        surv_png_bytes = render_png(fig_surv.to_json())
-
-                    dl_col1, dl_col2, dl_col3 = st.columns(3)
-                    with dl_col1:
-                        st.download_button(
-                            "📈 PDF chart",
-                            data=pdf_png_bytes,
-                            file_name="resume_conversion_pdf.png",
-                            mime="image/png",
-                        )
-                    with dl_col2:
-                        st.download_button(
-                            "🌳 Forest plot",
-                            data=forest_png_bytes,
-                            file_name="resume_conversion_forest.png",
-                            mime="image/png",
-                        )
-                    with dl_col3:
-                        st.download_button(
-                            "⏳ Survival chart",
-                            data=surv_png_bytes,
-                            file_name="resume_conversion_survival.png",
-                            mime="image/png",
-                        )
-                except Exception as e:
-                    st.error(
-                        "PNG export requires `kaleido` — make sure `kaleido==0.2.1` is in requirements.txt. "
-                        f"(Error: {type(e).__name__})"
-                    )
+                st.download_button(
+                    "📈 PDF chart",
+                    data=pdf_png_bytes,
+                    file_name="resume_conversion_pdf.png",
+                    mime="image/png",
+                    use_container_width=True,
+                )
+                st.download_button(
+                    "🌳 Forest plot",
+                    data=forest_png_bytes,
+                    file_name="resume_conversion_forest.png",
+                    mime="image/png",
+                    use_container_width=True,
+                )
+                st.download_button(
+                    "⏳ Survival chart",
+                    data=surv_png_bytes,
+                    file_name="resume_conversion_survival.png",
+                    mime="image/png",
+                    use_container_width=True,
+                )
+            except Exception as e:
+                st.error(
+                    "PNG export requires `kaleido` — make sure `kaleido==0.2.1` is in requirements.txt. "
+                    f"(Error: {type(e).__name__})"
+                )
