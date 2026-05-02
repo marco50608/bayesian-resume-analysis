@@ -1,0 +1,59 @@
+# ============================================================================
+# Secrets — NEVER commit these
+# ============================================================================
+.streamlit/secrets.toml
+.env
+*.pem
+*-service-account.json
+resume-conversion-app-*.json
+
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+
+# ============================================================================
+# OS / Editor
+# ============================================================================
+.DS_Store
+Thumbs.db
+.obsidian/
+.vscode/
+.idea/
+*.bak
+*~
+
+# ============================================================================
+# Test / scratch artifacts
+# ============================================================================
+_test_run.ipynb
+
+# ============================================================================
+# Personal drafts and documents not for the public repo
+# ============================================================================
+# Author's own resume / cover letter source files
+Resume conversion for Linkedin.docx
+Resume conversion for Linkedin.pdf
+
+# Personal correspondence and post drafts
+Email to *.md
+LinkedIn post*.md
+Medium post*.md
+code explaination for Medium*
+
+# Output documents (one-pagers, technical writeups)
+One-Pager*
+Technical write-up*
+
+# Obsidian-style auto-named image attachments
+Pasted image *.png
+
+# Project-specific Claude assistant instructions (not for public repo)
+CLAUDE.md
