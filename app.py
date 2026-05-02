@@ -700,13 +700,13 @@ if st.session_state.run_analysis:
             # printed 0.2 as "0%" and 0.8 as "1%" because printf has no
             # built-in "scale by 100" specifier.
             offer_rate_pct = st.slider(
-                "Estimated Interview-to-Offer Rate", 0, 100, 20, 5, format="%d%%",
+                "Estimated Interview-to-Offer Rate", 0, 100, 20, 1, format="%d%%",
                 help="If you get 5 interviews, how many offers do you expect? (20 = 1 offer per 5 interviews)"
             )
             offer_rate = offer_rate_pct / 100.0
         with col_input3:
             confidence_pct = st.slider(
-                "Desired probability of reaching target", 50, 99, 80, 5, format="%d%%",
+                "Desired probability of reaching target", 1, 99, 80, 1, format="%d%%",
                 help="Higher confidence ⇒ more applications recommended."
             )
             confidence = confidence_pct / 100.0
