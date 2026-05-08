@@ -23,7 +23,7 @@ Under a flat Beta(1,1) prior, P(V2 > V3) ≈ 99%, 95% ETI for V2 ≈ [16%, 62%].
 
 ## Methodology, in one paragraph
 
-Each strategy is modelled as Binomial(n, θ) with a Beta prior, giving a closed-form Beta(α+k, β+n−k) posterior. Comparison between strategies is done by drawing 100,000 samples from each posterior and computing pairwise P(θ_A > θ_B) and the expected uplift distribution. Application-count forecasts in the Streamlit app integrate over the full posterior rather than using a point estimate, so prediction intervals reflect parameter uncertainty rather than just sampling noise at a fixed rate. A sensitivity analysis (Part 9) repeats the comparison under a deliberately pessimistic Beta(1, 50) prior, and a separate test (Part 10, Test 1B) uses a Jeffreys reference prior to compare V2 against a pooled V1+V3 baseline — both confirm the result isn't an artefact of the flat-prior choice.
+Each strategy is modelled as Binomial(n, θ) with a Beta prior, giving a closed-form Beta(α+k, β+n−k) posterior. Comparison between strategies is done by drawing 100,000 samples from each posterior and computing pairwise P(θ_A > θ_B) and the expected uplift distribution. Application-count forecasts in the Streamlit app integrate over the full posterior rather than using a point estimate, so prediction intervals reflect parameter uncertainty rather than just sampling noise at a fixed rate. A sensitivity analysis (Part 9) repeats the comparison under a deliberately pessimistic Beta(1, 50) prior, and a separate test (Part 10, Test 1B) uses a Jeffreys reference prior to compare V2 against a pooled V1+V3 baseline — both confirm the result isn't an artefact of the flat-prior choice. Two further robustness checks (Parts 13–14) sweep the full Beta(α, β) prior class and run a power-scaling sensitivity diagnostic, both confirming the directional conclusion is structurally stable.
 
 ---
 
@@ -77,7 +77,7 @@ The app runs without `secrets.toml`. Anonymous event logging to a Google Sheet i
 
 ## Key files to inspect first
 
-- `Resume Conversion.ipynb` — Parts 0–12. Start here.
+- `Resume Conversion.ipynb` — Parts 0–14. Start here.
   - **Part 2:** Beta-Binomial conjugate update, per-strategy posteriors
   - **Part 3:** Posterior-predictive ("noodle") plot — Beta-Binomial 95% prediction interval, not just rate × n
   - **Part 5:** Inference — pairwise P(V2 > V3) and 95% credible interval for V2
@@ -85,6 +85,8 @@ The app runs without `secrets.toml`. Anonymous event logging to a Google Sheet i
   - **Part 9:** Sensitivity analysis under a deliberately pessimistic Beta(1, 50) prior
   - **Part 10:** Statistical validation — frequentist binomial test (Test 1A) and Bayesian comparison against the pooled V1+V3 baseline under a Jeffreys prior (Test 1B)
   - **Part 11:** Risk-adjusted "alpha" framing — explicitly labelled as narrative, not statistical inference
+  - **Part 13:** Robustness frontier — sweeps a 30×31 grid of (α, β) priors and plots contours of P(V2 > V3), so the conclusion's robustness is shown across the whole prior class instead of one alternative point
+  - **Part 14:** Power-scaling sensitivity diagnostic (Kallioinen et al. 2024 style, closed-form Beta-Binomial adaptation) — quantifies how much each posterior depends on the prior versus the likelihood
 - `app.py` — Streamlit version of the same model with arbitrary user-supplied data; adds an effort-survival simulation and a reverse-goal calculator that both marginalise over the posterior.
 
 ---
