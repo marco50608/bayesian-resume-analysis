@@ -1,0 +1,8 @@
+# Extra dependencies for running the notebooks (NOT needed for the Streamlit app).
+# Install in addition to requirements.txt:
+#   pip install -r requirements-notebook.txt
+
+pymc>=5.0,<6.0
+arviz>=0.15,<1.0
+seaborn>=0.12,<1.0
+jupyter>=1.0,<2.0
