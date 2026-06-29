@@ -35,6 +35,11 @@ Thumbs.db
 # ============================================================================
 _test_run.ipynb
 
+# Jupyter export artifacts — derived from .ipynb, should not live in the repo
+*.html
+Hierarchical Extension.pdf
+Resume Conversion.pdf
+
 # ============================================================================
 # Personal drafts and documents not for the public repo
 # ============================================================================

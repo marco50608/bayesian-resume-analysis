@@ -5,17 +5,19 @@ A Bayesian analysis of a personal resume A/B "experiment": 58 applications acros
 This is a personal case study (N = 49 valid applications after excluding German-required roles), not a generalisable result. The point of the repo is the method, not the headline number.
 
 **Companion write-up:** Medium post — link TBA after publication.
-**Interactive tool:** Streamlit app — link TBA after deployment. Drop in your own application counts and see the posteriors for your strategies.
+**Interactive tool:** [Streamlit app](https://bayesian-resume-analysis.streamlit.app/) — drop in your own application counts and see the posteriors for your strategies.
 
 ---
 
 ## TL;DR — What's in here
 
-| Version | Description | Valid N | Interviews | Raw rate |
+| Version | Description | Valid N | Interviews | Adjusted rate (k / valid N) |
 |---|---|---|---|---|
 | V1 | Standard Taiwan/US English CV | 21 | 0 | 0% |
 | V2 | English content, German UX (*Lebenslauf*, *Berufserfahrung*, 1.0–5.0 GPA) | 14 | 5 | 36% |
 | V3 | "Traditional" English student format | 14 | 0 | 0% |
+
+(Raw rates, before excluding German-required roles, are V1 = 0/23 = 0%, V2 = 5/20 = 25%, V3 = 0/15 = 0%. Notebook Part 8 reports both side by side.)
 
 Under a flat Beta(1,1) prior, P(V2 > V3) ≈ 99%, 95% ETI for V2 ≈ [16%, 62%]. The effect survives a deliberately pessimistic Beta(1,50) prior, which is the main stress test in the notebook.
 
@@ -43,9 +45,13 @@ Each strategy is modelled as Binomial(n, θ) with a Beta prior, giving a closed-
 ├── README.md                          # you are here
 ├── LICENSE                            # MIT
 ├── .gitignore
-├── requirements.txt                   # pinned dependencies
+├── requirements.txt                   # pinned deps for the Streamlit app
+├── requirements-notebook.txt          # extra deps for the notebooks (PyMC, ArviZ, seaborn, jupyter)
 ├── app.py                             # Streamlit interactive tool
-├── Resume Conversion.ipynb            # full Bayesian analysis, end-to-end
+├── Resume Conversion.ipynb            # main Bayesian analysis, end-to-end
+├── Hierarchical Extension.ipynb       # structural-robustness check via partial pooling (PyMC, MCMC)
+├── .devcontainer/                     # GitHub Codespaces config (auto-generated, optional)
+│   └── devcontainer.json
 └── .streamlit/
     └── secrets.toml.example           # template for optional anonymous logging
 ```
@@ -59,11 +65,21 @@ git clone https://github.com/marco50608/bayesian-resume-analysis.git
 cd bayesian-resume-analysis
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-notebook.txt
 jupyter lab "Resume Conversion.ipynb"
 ```
 
+(The main notebook needs `seaborn` and `jupyter`, both of which live in `requirements-notebook.txt` — that's why both files are installed above.)
+
 All stochastic steps (Monte Carlo posterior comparison, posterior-predictive noodle draws, sensitivity analysis) are seeded with `np.random.seed(222)` and `np.random.default_rng(222)`, so the figures should reproduce bit-for-bit.
+
+The same install also covers `Hierarchical Extension.ipynb` (which uses PyMC for MCMC). Run it the same way:
+
+```bash
+jupyter lab "Hierarchical Extension.ipynb"
+```
+
+If you *only* want to run the Streamlit app and skip the notebooks, you can install just `requirements.txt` and skip `requirements-notebook.txt`.
 
 ### Running the Streamlit app
 
@@ -87,6 +103,7 @@ The app runs without `secrets.toml`. Anonymous event logging to a Google Sheet i
   - **Part 11:** Risk-adjusted "alpha" framing — explicitly labelled as narrative, not statistical inference
   - **Part 13:** Robustness frontier — sweeps a 30×31 grid of (α, β) priors and plots contours of P(V2 > V3), so the conclusion's robustness is shown across the whole prior class instead of one alternative point
   - **Part 14:** Power-scaling sensitivity diagnostic (Kallioinen et al. 2024 style, closed-form Beta-Binomial adaptation) — quantifies how much each posterior depends on the prior versus the likelihood
+- `Hierarchical Extension.ipynb` — structural-robustness check that drops the independent-priors assumption. Uses PyMC (NUTS) to fit a hierarchical Beta-Binomial with the Gelman (μ, κ) parametrisation, and a separate prior-predictive check (Part 2A) to test how much mass the prior actually puts on the sceptic's "all three strategies are roughly equivalent" world. Under partial pooling V2's posterior mean shrinks from 37.5% to ~30%, but P(V2 > V3) holds at ~99% and survives a κ-hyperprior sensitivity sweep.
 - `app.py` — Streamlit version of the same model with arbitrary user-supplied data; adds an effort-survival simulation and a reverse-goal calculator that both marginalise over the posterior.
 
 ---

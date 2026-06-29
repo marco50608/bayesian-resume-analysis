@@ -111,7 +111,7 @@ def render_png(fig_json: str, width: int = 1200, height: int = 600, scale: int =
 # -----------------------------------------------------------------------------
 # 1. Page Configuration
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="Resume Bayesian Analyzer", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Bayesian Resume Conversion Analysis", page_icon="📊", layout="wide")
 
 # -----------------------------------------------------------------------------
 # URL state (Permalink) — read query params as widget defaults so a shared
@@ -167,23 +167,52 @@ if 'privacy_notice_shown' not in st.session_state:
             icon="🔒",
         )
 
-with st.expander("ℹ️ How this works (and what the numbers mean)"):
+with st.expander("ℹ️ New here? Start with this — what this tool does, in plain English"):
     st.markdown("""
-**The model.** Each strategy's true conversion rate is treated as a Beta-distributed random variable.
-We start from a prior Beta(α, β) and update it with your data using the conjugate rule:
-Posterior = Beta(α + interviews, β + (valid_apps − interviews))
-**What you see.**
-- **Posterior (PDF tab)** — your current belief about the true rate after seeing data. Narrower = more certain.
-- **Forest plot** — 95% equal-tailed credible intervals. Overlapping intervals ≈ indistinguishable strategies.
-- **Effort survival** — probability of getting ≥1 interview as you send more applications.
-- **Reverse goal calculator** — apps needed to reach a target offer count with the chosen probability of success.
-- **P(Row > Column) matrix** — Monte Carlo probability from posteriors. 50% = no signal; 95%+ = strong evidence.
+#### The problem this tool solves
 
-**What this tool doesn't do.** It doesn't tell you *why* a resume works. With n=15, k=0 you'll see a wide posterior — that's the honest answer, not a bug.
+You sent some job applications. A few of them led to interviews; most didn't. You're staring at a number like *"5 interviews out of 14 applications = 36%"* and asking: **how confident can I actually be in that 36%?** If you'd sent only 3 more applications and got 1 more interview, the number would have been 38%. If you'd had 1 fewer success, it would be 29%. The raw rate is wobbly because the sample is small.
 
-**Priors.** The default slider (1, 1) is equivalent to Beta(1,1) = uniform. Jeffreys Beta(0.5, 0.5) is the objective reference prior; Flat is the same as slider at (1,1). If you have strong reason to think conversion rates are typically low, increase Beta to e.g. (1, 20).
+This tool gives you the honest answer: **a range, not a single number**. Instead of saying *"your conversion rate is 36%"*, it says something like *"your true underlying rate is most likely somewhere between 16% and 62%, with the best single guess around 38%."* That range is wide because 14 applications is a small sample — and the tool doesn't pretend otherwise.
 
-Full write-up: [Medium post](#) · Code: [GitHub](#)
+#### How it works (Bayesian inference in 30 seconds)
+
+1. **Prior** — what you believed *before* seeing your data. By default the tool starts from "I have no idea" (every conversion rate from 0% to 100% is equally plausible).
+2. **Data** — your actual application counts.
+3. **Posterior** — your updated belief *after* combining the prior with the data. This is the bell-shaped curve you see on the "Distributions" tab.
+
+The math is a standard *Beta-Binomial conjugate update*: if your prior is `Beta(α, β)` and you observed `k` interviews out of `n` valid applications, your posterior is `Beta(α + k, β + n − k)`. You don't need to understand the formula to use the tool — but if a stats reviewer asks, that's what's happening under the hood.
+
+#### What the tabs show you
+
+- **📈 Distributions (PDF)** — your belief about each strategy's true rate as a curve. **Taller and narrower = more certain. Further right = better.** Hover anywhere to see *"how likely is the true rate to be at least X?"*.
+
+- **🌳 Forest Plot** — each strategy as a horizontal line showing its 95% credible interval (the range that contains the true rate with 95% probability). **If two lines barely overlap, those strategies are probably different. If they overlap a lot, the data can't tell them apart.**
+
+- **⏳ Effort Survival** — answers "how many applications until I'm X% sure of getting at least one interview?" Steeper curve = better strategy (less effort needed).
+
+- **🎯 Reverse Goal Calculator** — answers "how many applications do I need to send for an N% chance of getting *Y* offers?" Takes both posterior uncertainty AND binomial sampling randomness into account, so it doesn't fall into the trap of thinking "1 / rate = number of applications needed".
+
+- **🔀 Pairwise Probability Matrix** (under the Distributions tab) — for any two strategies A and B, shows `P(A's true rate > B's true rate)`. **Near 50% means the data can't distinguish them. Above 95% is strong evidence that A is better.**
+
+#### Things to be honest about
+
+- **Small samples produce wide intervals.** With 14 applications and 0 interviews, the tool will tell you the true rate is somewhere between 0% and ~22%. That's the actual answer — narrowing it down requires more data, not better math.
+- **This tool can't tell you *why* a resume works.** It compares effectiveness across versions; it doesn't explain causation. A high rate could come from the resume, the timing, the role mix, or luck.
+- **"True rate" is a model concept, not a physical constant.** The Bayesian "true rate" is the parameter of the Binomial distribution we assume generated your observations. It's the most defensible estimate given the data — but it's still an estimate, not a measurement.
+
+#### Customising the prior (advanced — skip if it doesn't matter to you)
+
+The sidebar lets you change the prior:
+- **Slider (1, 1)** = Flat / uniform prior. *"I have no prior belief about what conversion rates are typical."* This is the default.
+- **Jeffreys Beta(0.5, 0.5)** = an objective reference prior with slight U-shape (pulls slightly toward 0 and 1). Often used by statisticians as a "non-informative" default.
+- **Slider (1, 20)** or similar = a pessimistic prior. *"I believe conversion rates are typically low; the data must work hard to convince me otherwise."*
+
+Changing the prior shifts the posterior somewhat, but with reasonable data the data dominates. The notebook (linked below) sweeps the whole prior class and shows the conclusion is robust across a wide range.
+
+---
+
+Full write-up: [GitHub repo](https://github.com/marco50608/bayesian-resume-analysis) · Medium post: link TBA after publication.
     """)
 
 # -----------------------------------------------------------------------------
@@ -525,12 +554,22 @@ if st.session_state.run_analysis:
         st.info(win_msg)
         
         st.markdown("""
-        #### 💡 How to read this chart:
-        *   **X-axis (True Conversion Rate)**: The possible "real" success rate of your resume.
-        *   **Y-axis (Height)**: How likely that rate is. A taller, narrower peak means we are more sure.
-        *   **Hover Info ("Chance > X")**: This is the most useful number!
-            *   It tells you: *"What is the probability that my true skill is **better** than this number?"*
-            *   *Example:* If you hover at **10%** and see **"Chance > 10%: 80%"**, it means there is an **80% probability** that your actual conversion rate is higher than 10%.
+        #### 💡 How to read this chart
+
+        Each curve is one strategy's **belief distribution** about its true conversion rate.
+        Think of it as: *"if you had to bet on what the true rate is, this curve is your bet."*
+
+        - **X-axis** — possible true conversion rates from 0% to whatever the chart shows.
+        - **Y-axis** — how plausible each rate is. **A tall narrow peak = "I'm very sure the rate is around here." A wide flat curve = "I really don't know yet."**
+        - **Width of the curve** = uncertainty. Small samples → wide curves. More data → narrower curves.
+
+        **The hover info is the most useful number.** Hover over the chart at any x-value (e.g., 10%):
+        - You'll see *"Chance > 10%: 80%"* — meaning **there's an 80% probability the true rate is above 10%**.
+        - This is what Bayesian inference is good at: **direct probability statements**, not p-values.
+
+        **Comparing two curves visually:**
+        - If two curves barely overlap → those strategies are probably different.
+        - If two curves overlap a lot → the data can't reliably tell them apart yet (you'd need more applications).
         """)
         # -----------------------------------------------------------------------------
         # Pairwise P(A > B) Matrix
@@ -538,9 +577,13 @@ if st.session_state.run_analysis:
         if len(results) >= 2:
             st.markdown("### 🔀 Pairwise Probability Matrix")
             st.caption(
-                "Probability that the **row** strategy's true conversion rate exceeds the **column**'s, "
-                "based on 10,000 posterior samples. Values near 50% mean the data can't distinguish them; "
-                "values above 95% are strong evidence."
+                "Read **row vs column**: each cell shows the posterior probability that the **row** strategy's "
+                "true rate is higher than the **column** strategy's. So the cell at row V2, column V3 reading "
+                "*99%* means *\"there's a 99% probability that V2's true conversion rate is higher than V3's.\"* "
+                "**Near 50% = the data can't tell the two strategies apart.** "
+                "**Above 95% = strong evidence the row strategy is better.** "
+                "**Below 5% = strong evidence the column strategy is better.** "
+                "Computed from 10,000 paired posterior samples per pair."
             )
 
             labels = [r['data']['label'] for r in results]
@@ -579,7 +622,10 @@ if st.session_state.run_analysis:
     with tab2:
         st.subheader("Forest Plot: 95% Credible Intervals")
         st.caption(
-            "Compare the ranges. If intervals overlap significantly, the strategies might be statistically similar.")
+            "Each strategy is shown as a dot (best single guess of the true rate) with a horizontal bar "
+            "(95% credible interval — the range that contains the true rate with 95% posterior probability). "
+            "If two bars overlap a lot, the data can't reliably tell those strategies apart. "
+            "If a bar is entirely to the right of another, that strategy is very likely better.")
 
         fig_forest = go.Figure()
 
@@ -616,9 +662,13 @@ if st.session_state.run_analysis:
 
     # --- TAB 3: Effort Survival Analysis ---
     with tab3:
-        st.subheader("Effort Simulation (Geometric Distribution)")
+        st.subheader("Effort Simulation: how many applications until ≥1 interview?")
         st.caption(
-            "Based on your conversion rate, what is the probability of getting AT LEAST ONE interview within the next N applications?")
+            "Reads as: 'if I send N more applications using this strategy, what's the probability that at least one of them "
+            "produces an interview?' The curve climbs from 0% (zero applications) toward 100% (lots of applications). "
+            "Each strategy gets its own curve. A steeper curve means fewer applications needed for the same probability. "
+            "Two dotted reference lines mark the 50% and 90% probability thresholds — read off the x-axis to see "
+            "how many applications you'd need to cross each threshold.")
 
         fig_surv = go.Figure()
         efforts = np.arange(0, 51)
@@ -672,22 +722,33 @@ if st.session_state.run_analysis:
 
         st.plotly_chart(fig_surv, use_container_width=True)
         st.markdown("""
-        **How to read this:**
-        * If the line crosses **90% at 20 apps**, it means: *"If I send 20 more applications, I am 90% sure I'll get an interview."*
-        * **Steeper curve** = Better strategy (Less effort required).
+        **How to read this**
+
+        - **Where a curve crosses the 90% line** = how many applications you'd need to send for a 90% chance of at least one interview with that strategy. E.g. if a curve hits 90% at 20 applications, sending 20 more applications gives you a 90% chance of at least one interview.
+        - **Steeper curve = better strategy** (fewer applications needed for the same confidence).
+        - The "annotation arrow" labelled *"90% chance at X apps"* points at the crossing point automatically. If no curve reaches 90% within 50 applications, no annotation appears for that strategy — meaning you'd need more than 50 applications to hit 90% confidence.
+        - The curve **marginalises over posterior uncertainty**: it averages the survival probability across all plausible true rates, weighted by how likely each rate is given your data. So a flat-looking, low-converging curve usually means *"the data is consistent with a low true rate, so even many applications can't guarantee an interview."*
         """)
 
     # --- TAB 4: Reverse Goal Calculator ---
     with tab4:
         st.subheader("🎯 Reverse Goal Calculator (Action Plan)")
         st.markdown(
-            "**How many applications do I need to send to be reasonably sure I'll get my target offers?** "
-            "The number returned below is the smallest *N* such that the marginal probability of "
-            "reaching the goal in *N* applications meets your chosen confidence level. "
-            "This integrates **two** sources of uncertainty: posterior uncertainty about your true "
-            "app→interview rate, *and* binomial sampling noise in actual outcomes — so it doesn't "
-            "fall into the trap of `1 / rate` thinking, where a 5% rate naïvely says \"20 apps for "
-            "1 offer\" but actually gives only ~64% probability of success."
+            "**How many applications do I need to send to be reasonably sure I'll get my target offers?**\n\n"
+            "Set three things on the sliders below:\n"
+            "1. **Target number of offers** — how many job offers you want.\n"
+            "2. **Interview-to-offer rate** — your estimate of how many interviews convert to actual offers "
+            "(e.g. 20% = 1 offer per 5 interviews).\n"
+            "3. **Desired probability of reaching the target** — how confident you want to be that this many "
+            "applications will be enough (e.g. 80% = \"I want to be 80% sure I'll hit my target\").\n\n"
+            "The calculator then returns the **smallest number of applications N such that the probability of "
+            "reaching your target in N applications is at least your chosen confidence**.\n\n"
+            "**Why this is more than just `target / rate`.** Naïvely, if your offer rate is 5%, you'd think "
+            "1 / 0.05 = 20 applications give you 1 offer. But that 20 only gives you a ~64% chance of getting "
+            "at least one offer — not the 100% the simple division suggests. This calculator avoids that trap "
+            "by integrating **both** sources of randomness: (1) uncertainty about your true conversion rate "
+            "(your real rate could be higher or lower than your point estimate), and (2) the binomial sampling "
+            "noise of whether each application actually converts."
         )
 
         col_input1, col_input2, col_input3 = st.columns(3)
@@ -707,7 +768,7 @@ if st.session_state.run_analysis:
         with col_input3:
             confidence_pct = st.slider(
                 "Desired probability of reaching target", 1, 99, 80, 1, format="%d%%",
-                help="Higher confidence ⇒ more applications recommended."
+                help="Higher target probability ⇒ more applications recommended."
             )
             confidence = confidence_pct / 100.0
 
@@ -776,27 +837,9 @@ if st.session_state.run_analysis:
                 st.warning(
                     f"Even {MAX_APPS} applications give only a {prob_reach_goal[-1]:.1%} probability "
                     f"of reaching this goal with this strategy. Consider lowering the target, "
-                    f"raising the offer-rate estimate, or accepting a lower confidence level."
+                    f"raising the offer-rate estimate, or accepting a lower target probability."
                 )
             st.markdown("---")
-
-
-
-
-    # -----------------------------------------------------------------------------
-    # Footer
-    # -----------------------------------------------------------------------------
-    st.markdown("---")
-    st.caption(
-        "Powered by Bayesian Inference. · "
-        "If the operator has configured anonymous logging, clicking \"Run Bayesian Analysis\" "
-        "may record numeric inputs (application counts, interview counts, prior settings) "
-        "for aggregate usage research. No names, emails, IPs, cookies, or identifying "
-        "information are stored; rows cannot be linked back to you or your session. "
-        "Logging is debounced — rows are only written after ~2.5 seconds of input stability, "
-        "so editing your values within that window prevents the row from being saved. "
-        "Legal basis: GDPR Art. 6(1)(f) — legitimate interest in improving the tool."
-    )
 
     # -----------------------------------------------------------------------------
     # Export
@@ -805,16 +848,9 @@ if st.session_state.run_analysis:
 
     # CSV button + PNG generator share one row, each occupying 1/3 of the
     # page width. The third column stays empty.
-    #
-    # Why a button instead of an st.expander for PNG: st.expander's title
-    # is always left-aligned and there is no public API to centre it,
-    # which makes it look mismatched next to the centred-text CSV button.
-    # A regular button has centred text by default and behaves the same
-    # way (one click → generate → show downloads).
     col_csv, col_png, _spacer = st.columns([1, 1, 1])
 
     with col_csv:
-        # CSV is cheap — always ready
         csv_bytes = df_table.to_csv(index=False).encode("utf-8")
         st.download_button(
             "📄 Download table (CSV)",
@@ -825,9 +861,6 @@ if st.session_state.run_analysis:
         )
 
     with col_png:
-        # PNGs are expensive (kaleido spawns headless Chromium) — lazy-load
-        # behind a button. We also key the render cache by a fingerprint so
-        # the same fingerprint never re-renders unnecessarily.
         png_fp_key = f"png_ready_{current_fp}"
         if png_fp_key not in st.session_state:
             st.session_state[png_fp_key] = False
@@ -874,3 +907,18 @@ if st.session_state.run_analysis:
                     "PNG export requires `kaleido` — make sure `kaleido==0.2.1` is in requirements.txt. "
                     f"(Error: {type(e).__name__})"
                 )
+
+    # -----------------------------------------------------------------------------
+    # Footer (moved to actual end — was incorrectly above the Export section)
+    # -----------------------------------------------------------------------------
+    st.markdown("---")
+    st.caption(
+        "Powered by Bayesian Inference. · "
+        "If the operator has configured anonymous logging, clicking \"Run Bayesian Analysis\" "
+        "may record numeric inputs (application counts, interview counts, prior settings) "
+        "for aggregate usage research. No names, emails, IPs, cookies, or identifying "
+        "information are stored; rows cannot be linked back to you or your session. "
+        "Logging is debounced — rows are only written after ~2.5 seconds of input stability, "
+        "so editing your values within that window prevents the row from being saved. "
+        "Legal basis: GDPR Art. 6(1)(f) — legitimate interest in improving the tool."
+    )
