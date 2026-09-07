@@ -172,6 +172,52 @@ if 'privacy_notice_shown' not in st.session_state:
 
 with st.expander("ℹ️ New here? Start with this — what this tool does, in plain English"):
     st.markdown("""
+#### A worked example, in 30 seconds
+
+Say you sent out two clearly different CVs and wrote down what happened:
+
+| | What it was | Applications | Interviews |
+|---|---|---|---|
+| **Version A** | Your original CV | 21 | 0 |
+| **Version B** | Same content, rebuilt in the local format | 14 | 5 |
+
+Type those four numbers into the sidebar and press **🚀 Run Bayesian Analysis**. The tool answers:
+
+- **Version A** — best guess **4.3%**, honest range **0.1% – 15.4%**. Zero interviews out of 21 does *not* mean the true rate is zero. It means it is probably low, and 21 applications is not enough to say more than that.
+- **Version B** — best guess **37.5%**, honest range **16.3% – 61.6%**.
+- **Version B is better, with 99.8% probability.**
+
+Notice what the tool refuses to do. It will not tell you Version B converts at 36%. It says B's true rate sits somewhere in a wide band, that the band is well clear of A's, and that this is enough to act on — even though 14 applications is a small sample.
+
+*(Those are real numbers from the case study this tool was built for. The sidebar's **📥 Load example data** button loads the full three-version original.)*
+
+---
+
+#### What counts as a different "version"?
+
+This matters more than anything else on this page, and it is the easiest thing to get wrong.
+
+A version is a CV you decided on once and then sent out **unchanged** across a batch of applications. The test: if you handed two of your applications to a stranger, would they say *"same CV"* or *"two different CVs"*?
+
+**Counts as a new version**
+
+- A different layout or template
+- A different section order — education first vs experience first
+- Switching to local conventions: section headings in the local language, the local grade scale, photo added or removed
+- One page vs two pages
+
+**Does not count**
+
+- Swapping keywords to match each job description
+- Rewording a bullet or the summary line for each posting
+- Renaming the file
+
+Per-application tailoring is normal and you should keep doing it — it just isn't a *version*. If you treat every tweak as its own version, you end up with twenty versions of one or two applications each, and the tool can tell you nothing useful about any of them.
+
+⚠️ **The rule that is easiest to break:** if you changed the layout halfway through a batch, that batch is really two versions. Split it. Otherwise you are averaging two different things, and the number you get back describes neither of them.
+
+---
+
 #### The problem this tool solves
 
 You sent some job applications. A few of them led to interviews; most didn't. You're staring at a number like *"5 interviews out of 14 applications = 36%"* and asking: **how confident can I actually be in that 36%?** If you'd sent only 3 more applications and got 1 more interview, the number would have been 38%. If you'd had 1 fewer success, it would be 29%. The raw rate is wobbly because the sample is small.
@@ -521,7 +567,126 @@ if st.session_state.run_analysis:
         win_msg = f"**{winner['data']['label']}** is your current baseline."
 
     # -----------------------------------------------------------------------------
-    # 4. Visualizations (Tabs)
+    # 4. Overview — plain-language summary, shown before the detailed tabs
+    # -----------------------------------------------------------------------------
+    st.markdown("## 📋 Overview — what your numbers actually say")
+
+    _n_total = sum(r["effective_n"] for r in results)
+    _k_total = sum(r["data"]["k"] for r in results)
+    _runner = sorted_results[1] if len(sorted_results) > 1 else None
+    if _runner is not None:
+        _p_vs_runner = float((winner["samples"] > _runner["samples"]).mean())
+
+    _c1, _c2, _c3 = st.columns(3)
+    _wl = winner["data"]["label"]
+    _c1.metric("Best performing version",
+               _wl if len(_wl) <= 22 else _wl[:21] + "…",
+               help=_wl if len(_wl) > 22 else None)
+    if len(results) > 1:
+        _c2.metric(
+            "Chance it really is the best", f"{prob_best:.0%}",
+            help="Probability that this version's TRUE rate is the highest of every "
+                 "version you entered — not just that it looked best this time.",
+        )
+    else:
+        _c2.metric("Chance it really is the best", "—",
+                   help="Add a second version in the sidebar to enable comparison.")
+    _c3.metric(
+        "Evidence behind it", f"{_k_total} / {_n_total}",
+        help="Total interviews / total valid applications across all versions.",
+    )
+
+    # --- Per-version readout, plain language --------------------------------
+    st.markdown("#### Your versions, one line each")
+    for r in sorted_results:
+        s_ = r["data"]
+        st.markdown(
+            f"- **{s_['label']}** — {s_['k']} interview"
+            f"{'' if s_['k'] == 1 else 's'} from {r['effective_n']} valid "
+            f"application{'' if r['effective_n'] == 1 else 's'}. "
+            f"Best guess **{r['mean']:.1%}**; the data is consistent with anything "
+            f"from **{r['ci_lower']:.1%}** to **{r['ci_upper']:.1%}**."
+        )
+
+    # --- What it means, adapted to how decisive the result actually is ------
+    st.markdown("#### What this means")
+
+    _widest = max(r["ci_upper"] - r["ci_lower"] for r in results)
+
+    if len(results) == 1:
+        st.info(
+            f"With one version there is nothing to compare against, so the useful "
+            f"output is the range: your true rate is most likely between "
+            f"**{winner['ci_lower']:.1%}** and **{winner['ci_upper']:.1%}**. "
+            f"Add a second version in the sidebar to find out whether a change you "
+            f"made actually helped."
+        )
+    elif prob_best >= 0.95:
+        st.success(
+            f"**The data can tell your versions apart.** "
+            f"{winner['data']['label']} comes out on top in {prob_best:.0%} of the "
+            f"plausible worlds consistent with what you observed. That is strong "
+            f"enough to act on: keep using it, and stop spending applications on the "
+            f"others to find out.\n\n"
+            f"It is *not* a promise that its true rate is {winner['mean']:.1%}. "
+            f"The honest claim is the range "
+            f"[{winner['ci_lower']:.1%}, {winner['ci_upper']:.1%}] — the ranking is "
+            f"solid, the exact number is not."
+        )
+    elif prob_best >= 0.80:
+        st.warning(
+            f"**Leaning, but not settled.** {winner['data']['label']} is ahead, and "
+            f"it is the best of your versions in {prob_best:.0%} of plausible worlds "
+            f"— which also means roughly a **{1 - prob_best:.0%} chance the ranking "
+            f"is wrong** and something else is actually better.\n\n"
+            f"That is usually worth acting on provisionally while you gather more "
+            f"data, but it is not worth writing a blog post about yet."
+        )
+    else:
+        st.error(
+            f"**Your data cannot yet tell these versions apart.** "
+            f"{winner['data']['label']} has the highest average, but only a "
+            f"{prob_best:.0%} chance of genuinely being the best — which leaves a "
+            f"**{1 - prob_best:.0%} chance one of the others is actually better**. "
+            f"An ordering that shaky can reverse on a handful of applications.\n\n"
+            f"The honest conclusion right now is *\"I don't know yet\"*. That is a "
+            f"real finding, not a failure: it stops you from switching strategy on "
+            f"noise. Send more applications with the current front-runners before "
+            f"drawing a conclusion."
+        )
+
+    if _runner is not None and 0.05 < _p_vs_runner < 0.95:
+        st.caption(
+            f"⚖️ Head-to-head, **{winner['data']['label']}** beats "
+            f"**{_runner['data']['label']}** in only {_p_vs_runner:.0%} of plausible "
+            f"worlds. Those two in particular are not distinguishable yet."
+        )
+
+    if _widest > 0.35:
+        st.caption(
+            f"📏 Your widest range spans {_widest:.0%} percentage points. That is what "
+            f"a small sample looks like — the width is the honest answer, and it "
+            f"narrows with more applications, not with better maths."
+        )
+
+    # --- Where to look next -------------------------------------------------
+    st.markdown("#### Where to look next")
+    st.markdown(
+        "Each question below is answered on one of the tabs directly underneath "
+        "this section.\n\n"
+        "| If you want to know… | Open this tab |\n"
+        "|---|---|\n"
+        "| How certain each rate is, and whether two versions overlap | **📈 Distributions (PDF)** |\n"
+        "| Every version's range side by side, at a glance | **🌳 Forest Plot (Comparison)** |\n"
+        "| The exact odds of any version beating any other | **📈 Distributions (PDF)** → *Pairwise Probability Matrix* |\n"
+        "| How many more applications until you'd expect at least one interview | **⏳ Effort Survival (Simulation)** |\n"
+        "| How many applications to send to hit a target number of offers | **🎯 Reverse Goal Calculator** |"
+    )
+
+    st.divider()
+
+    # -----------------------------------------------------------------------------
+    # 5. Visualizations (Tabs)
     # -----------------------------------------------------------------------------
 
     tab1, tab2, tab3, tab4 = st.tabs(
