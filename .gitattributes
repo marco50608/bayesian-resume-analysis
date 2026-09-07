@@ -1,0 +1,14 @@
+# Normalise line endings so Windows checkouts stop producing whole-file diffs.
+* text=auto
+
+*.py    text eol=lf
+*.ipynb text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+
+*.png binary
+*.pdf binary
+*.docx binary
+*.xlsx binary

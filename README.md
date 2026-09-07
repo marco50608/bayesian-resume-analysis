@@ -17,6 +17,23 @@ This is a personal case study (N = 49 valid applications after excluding German-
 | V2 | English content, German UX (*Lebenslauf*, *Berufserfahrung*, 1.0–5.0 GPA) | 14 | 5 | 36% |
 | V3 | "Traditional" English student format | 14 | 0 | 0% |
 
+### Which number is which
+
+Five different figures for "V2's rate" appear across the notebooks and the
+write-ups. They are all correct; they answer different questions.
+
+| Figure | What it is | Where it is quoted |
+|---|---|---|
+| 25.0% | raw observed rate, 5/20 | Part 8 (unfiltered comparison) |
+| 35.7% | adjusted observed rate, 5/14 | Parts 8, 11 |
+| 37.5% | posterior mean under the flat Beta(1,1) prior | Parts 2–12, main post |
+| 30.4% | posterior mean under hierarchical partial pooling | sequel post |
+| 9.2%  | posterior mean under the pessimistic Beta(1,50) prior | Part 9 (stress test) |
+
+Probabilities of superiority are computed exactly (quadrature, not Monte
+Carlo), so both notebooks and both posts quote the same values:
+P(V2 > V1) = 99.78%, P(V2 > V3) = 99.16%, P(V3 > V1) = 59.46%.
+
 (Raw rates, before excluding German-required roles, are V1 = 0/23 = 0%, V2 = 5/20 = 25%, V3 = 0/15 = 0%. Notebook Part 8 reports both side by side.)
 
 Under a flat Beta(1,1) prior, P(V2 > V3) ≈ 99%, 95% ETI for V2 ≈ [16%, 62%]. The effect survives a deliberately pessimistic Beta(1,50) prior, which is the main stress test in the notebook.

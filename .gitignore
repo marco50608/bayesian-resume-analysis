@@ -62,3 +62,16 @@ Pasted image *.png
 
 # Project-specific Claude assistant instructions (not for public repo)
 CLAUDE.md
+
+# ============================================================================
+# Added 2026-09-07
+# ============================================================================
+# Obsidian vault holding personal post drafts. The post files are already
+# ignored by name, but anything else created in here should stay local too.
+Resume/
+
+# Audit / scratch dumps derived from the notebooks
+_audit_*.txt
+
+# LibreOffice lock files
+.~lock.*#

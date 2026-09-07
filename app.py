@@ -41,6 +41,9 @@ def log_event(prior_label: str, prior_alpha: float, prior_beta: float, strategie
     missing, the rate limit blocks the write, or any exception is caught.
     """
     # --- session-level rate limit ---
+        # --- user opt-out (GDPR Art. 21) ---
+    if st.session_state.get("opt_out_logging"):
+        return False
     RATE_LIMIT_SECONDS = 10.0
     now = time.time()
     last = st.session_state.get("_log_event_last_ts", 0.0)
@@ -220,6 +223,17 @@ Full write-up: [GitHub repo](https://github.com/marco50608/bayesian-resume-analy
 # -----------------------------------------------------------------------------
 st.sidebar.header("⚙️ Configuration")
 
+# GDPR Art. 21 gives a right to object to processing based on legitimate
+# interest, so the interface has to offer a way to exercise it.
+if logging_enabled():
+    st.sidebar.checkbox(
+        "Don't log this analysis",
+        value=False,
+        key="opt_out_logging",
+        help="Skips the anonymous numeric logging described in the footer. "
+             "Your inputs stay in your browser.",
+    )
+
 # Prior Selection — defaults from URL query params if present
 PRIOR_MODES = ["Slider (Custom)", "Jeffreys (0.5, 0.5)", "Flat (1, 1)"]
 _url_prior = _qp_str("prior", "Slider (Custom)")
@@ -263,11 +277,11 @@ if st.sidebar.button("📥 Load example data",
         st.session_state[f"inv_{i}"] = ex["invalid"]
     st.rerun()
 
-num_strategies = st.sidebar.number_input(
+st.session_state.setdefault("ns", _qp_int("ns", 2, 1, 5))
+num_strategies = st.number_input(
     "How many versions to compare?",
     min_value=1,
     max_value=5,
-    value=_qp_int("ns", 2, 1, 5),
     key="ns",
 )
 
@@ -285,36 +299,27 @@ for i in range(num_strategies):
     st.sidebar.markdown(f"#### Strategy {i + 1}")
     col1, col2 = st.sidebar.columns(2)
 
+    # Seed defaults through session_state instead of `value=`, so the
+    # "Load example data" button can overwrite them without Streamlit warning
+    # that the widget has both a default and a Session State value.
+    st.session_state.setdefault(f"name_{i}", _label_default)
+    st.session_state.setdefault(f"n_{i}",    _n_default)
+    st.session_state.setdefault(f"k_{i}",    _k_default)
+    st.session_state.setdefault(f"inv_{i}",  _inv_default)
+
     with col1:
-        label = st.text_input(
-            "Name",
-            value=_label_default,
-            key=f"name_{i}",
-            max_chars=40,
-        )
+        label = st.text_input("Name", key=f"name_{i}", max_chars=40)
         n_apps = st.number_input(
-            "Total Apps",
-            min_value=1,
-            max_value=10000,
-            value=_n_default,
-            key=f"n_{i}",
+            "Total Apps", min_value=1, max_value=10000, key=f"n_{i}",
         )
 
     with col2:
         k_interviews = st.number_input(
-            "Interviews",
-            min_value=0,
-            max_value=10000,
-            value=_k_default,
-            key=f"k_{i}",
+            "Interviews", min_value=0, max_value=10000, key=f"k_{i}",
             help="Number of interviews/first-stage responses you actually received.",
         )
         n_invalid = st.number_input(
-            "Noise (Invalid)",
-            min_value=0,
-            max_value=10000,
-            value=_inv_default,
-            key=f"inv_{i}",
+            "Noise (Invalid)", min_value=0, max_value=10000, key=f"inv_{i}",
             help="External rejections unrelated to resume quality (Visa, Language, etc.).",
         )
 
@@ -652,7 +657,7 @@ if st.session_state.run_analysis:
         fig_forest.update_layout(
             title=dict(text="Forest Plot: 95% Credible Intervals", x=0.5, xanchor='center'),
             xaxis=dict(title="Conversion Rate", tickformat=".0%",
-                       range=[0, min(1.0, max([r['ci_upper'] for r in results]) * 1.2)]),
+                       range=[0, view_range_max]),
             yaxis=dict(title="Strategy"),
             showlegend=False,
             height=300 + (len(results) * 30),
@@ -695,7 +700,7 @@ if st.session_state.run_analysis:
             try:
                 idx_90 = next(j for j, val in enumerate(prob_success) if val >= 0.9)
 
-                y_offset = -30 - (i % 3) * 25
+                y_offset = -30 - i * 25
 
                 fig_surv.add_annotation(
                     x=idx_90, y=0.9,
@@ -778,7 +783,6 @@ if st.session_state.run_analysis:
         # (vectorised over 10k posterior draws per call) is well under a
         # second per strategy.
         MAX_APPS = 1000
-        apps_grid = np.arange(1, MAX_APPS + 1)
 
         for res in results:
             s = res['data']
@@ -799,18 +803,27 @@ if st.session_state.run_analysis:
             # For each candidate N_apps, marginal P(≥ target_offers in N apps),
             # averaging over the posterior. Inner call is C-vectorised over the
             # 10k draws, outer loop is just 1000 scalars — fast in practice.
-            prob_reach_goal = np.array([
-                float(np.mean(1.0 - stats.binom.cdf(target_offers - 1, n, overall_samples)))
-                for n in apps_grid
-            ])
+            # P(reach goal) increases monotonically in N, so bisect instead of
+            # evaluating all MAX_APPS grid points: ~10 evaluations, not 1000.
+            def _p_reach(n_apps_):
+                return float(np.mean(
+                    1.0 - stats.binom.cdf(target_offers - 1, n_apps_, overall_samples)
+                ))
 
-            meets = np.where(prob_reach_goal >= confidence)[0]
-            if meets.size > 0:
-                apps_needed = int(apps_grid[meets[0]])
-                apps_needed_str = str(apps_needed)
-            else:
+            prob_at_max = _p_reach(MAX_APPS)
+            if prob_at_max < confidence:
                 apps_needed = None
                 apps_needed_str = f">{MAX_APPS}"
+            else:
+                lo, hi = 1, MAX_APPS       # invariant: _p_reach(hi) >= confidence
+                while lo < hi:
+                    mid = (lo + hi) // 2
+                    if _p_reach(mid) >= confidence:
+                        hi = mid
+                    else:
+                        lo = mid + 1
+                apps_needed = lo
+                apps_needed_str = str(apps_needed)
 
             c1, c2, c3 = st.columns(3)
             c1.metric("App→Interview Rate (mean)", f"{mean_rate:.1%}")
@@ -835,7 +848,7 @@ if st.session_state.run_analysis:
                 )
             else:
                 st.warning(
-                    f"Even {MAX_APPS} applications give only a {prob_reach_goal[-1]:.1%} probability "
+                    f"Even {MAX_APPS} applications give only a {prob_at_max:.1%} probability "
                     f"of reaching this goal with this strategy. Consider lowering the target, "
                     f"raising the offer-rate estimate, or accepting a lower target probability."
                 )
@@ -861,18 +874,16 @@ if st.session_state.run_analysis:
         )
 
     with col_png:
-        png_fp_key = f"png_ready_{current_fp}"
-        if png_fp_key not in st.session_state:
-            st.session_state[png_fp_key] = False
-
-        if not st.session_state[png_fp_key]:
+        # One fixed key holding WHICH fingerprint the user last generated for,
+        # instead of a new session_state entry per input change.
+        if st.session_state.get("png_ready_fp") != current_fp:
             if st.button(
                 "🖼️ Download charts as PNG",
-                key=f"gen_png_{current_fp}",
+                key="gen_png",
                 use_container_width=True,
                 help="Generates 3 PNGs (PDF, Forest, Survival). Takes ~1–2 seconds.",
             ):
-                st.session_state[png_fp_key] = True
+                st.session_state["png_ready_fp"] = current_fp
                 st.rerun()
         else:
             try:
