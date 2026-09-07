@@ -172,24 +172,49 @@ if 'privacy_notice_shown' not in st.session_state:
 
 with st.expander("ℹ️ New here? Start with this — what this tool does, in plain English"):
     st.markdown("""
-#### A worked example, in 30 seconds
+#### Start here: the story this tool came out of
 
-Say you sent out two clearly different CVs and wrote down what happened:
+In late 2025 I was applying for jobs in Germany with a fairly awkward profile — **A1 German** (which is to say, none), a **Philosophy and Law** background I was moving out of, and one year at Amazon. Over about three months I sent 58 applications.
 
-| | What it was | Applications | Interviews |
-|---|---|---|---|
-| **Version A** | Your original CV | 21 | 0 |
-| **Version B** | Same content, rebuilt in the local format | 14 | 5 |
+I did not set out to run an experiment. I just kept rewriting my CV.
 
-Type those four numbers into the sidebar and press **🚀 Run Bayesian Analysis**. The tool answers:
+**Version 1 — my normal CV.** The standard English one-pager I would have used in Taiwan or the US. Clean, competent, the format everyone tells you to use. I sent it out and waited.
 
-- **Version A** — best guess **4.3%**, honest range **0.1% – 15.4%**. Zero interviews out of 21 does *not* mean the true rate is zero. It means it is probably low, and 21 applications is not enough to say more than that.
-- **Version B** — best guess **37.5%**, honest range **16.3% – 61.6%**.
-- **Version B is better, with 99.8% probability.**
+> **21 applications. Zero interviews.** Not one reply.
 
-Notice what the tool refuses to do. It will not tell you Version B converts at 36%. It says B's true rate sits somewhere in a wide band, that the band is well clear of A's, and that this is enough to act on — even though 14 applications is a small sample.
+**Version 2 — the same CV, rebuilt to look German.** Identical person, identical jobs, identical content: same degree, same Amazon internship, same bullet points. The only thing I changed was **how it looked** — German section headings (*Lebenslauf*, *Berufserfahrung*), grades on the German 1.0–5.0 scale, the conservative layout German recruiters expect.
 
-*(Those are real numbers from the case study this tool was built for. The sidebar's **📥 Load example data** button loads the full three-version original.)*
+> **14 applications. Five interviews.**
+
+Which looks like a spectacular result. 0% became 36%, just by changing the formatting.
+
+And that is exactly the moment you should get suspicious. **Fourteen applications is nothing.** If I had got two interviews instead of five, the number would have been 14%. Streaks like this happen by luck all the time. So: is this real, or did I just get lucky at the right moment?
+
+That question is the entire reason this tool exists. Type those four numbers into the sidebar — 21 and 0, then 14 and 5 — press **🚀 Run Bayesian Analysis**, and here is what comes back:
+
+| | Applications | Interviews | Best guess | Honest range |
+|---|---|---|---|---|
+| **Version 1** (English CV) | 21 | 0 | **4.3%** | 0.1% – 15.4% |
+| **Version 2** (German format) | 14 | 5 | **37.5%** | 16.3% – 61.6% |
+
+**Version 2 is better, with 99.8% probability.**
+
+---
+
+#### What those three lines actually mean
+
+**1. Zero interviews does not mean a zero rate.**
+Version 1 got nothing at all, yet the tool says 4.3% rather than 0%. That is not the tool being polite. Twenty-one applications simply is not enough to prove something never happens: if my true rate had been 5%, sending 21 applications would have produced zero interviews about **a third of the time**. The honest reading of 0/21 is *"probably low, and I can't say more than that yet"* — which is what the range 0.1% – 15.4% says.
+
+**2. The best guess is not the answer. The range is.**
+Version 2's headline number is 36%, but the tool's real answer is *"somewhere between 16% and 62%."* That is an enormous span, and it is supposed to be. Five interviews out of fourteen pins down the truth very loosely. Anyone who quotes you a single confident percentage off a sample this size is showing you their arithmetic, not their evidence.
+
+**3. You can be sure about the comparison while still being unsure about the number.**
+This is the part that surprises people, and it is the whole point. The tool is **99.8% confident that Version 2 beats Version 1** — while flatly refusing to tell me whether Version 2's true rate is 20% or 55%. Those are two different questions. "Which one is better?" needs far less data than "exactly how good is it?", and only one of them was worth waiting for.
+
+So the decision was easy, even on a laughably small sample: **keep using Version 2, and stop spending applications on Version 1 to find out.** That is a conclusion I could act on the same afternoon. Pinning down the exact rate would have taken hundreds more applications, and I did not need it.
+
+*(These are my real numbers. The sidebar's **📥 Load example data** button loads the full three-version original, including the version I panic-switched to in the middle and should not have.)*
 
 ---
 
