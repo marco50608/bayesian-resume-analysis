@@ -186,11 +186,9 @@ I did not set out to run an experiment. I just kept rewriting my CV.
 
 > **14 applications. Five interviews.**
 
-Which looks like a spectacular result. 0% became 36%, just by changing the formatting.
+And that is exactly the moment I felt suspicious. Fourteen applications is nothing. If I had got two interviews instead of five, the number would have been 14%. So: is this real, or did I just get lucky at the right moment?
 
-And that is exactly the moment you should get suspicious. **Fourteen applications is nothing.** If I had got two interviews instead of five, the number would have been 14%. Streaks like this happen by luck all the time. So: is this real, or did I just get lucky at the right moment?
-
-That question is the entire reason this tool exists. Type those four numbers into the sidebar — 21 and 0, then 14 and 5 — press **🚀 Run Bayesian Analysis**, and here is what comes back:
+Type those four numbers into the sidebar — 21 and 0, then 14 and 5 — press **🚀 Run Bayesian Analysis**, and the result would be:
 
 | | Applications | Interviews | Best guess | Honest range |
 |---|---|---|---|---|
@@ -210,7 +208,7 @@ Version 1 got nothing at all, yet the tool says 4.3% rather than 0%. That is not
 Version 2's headline number is 36%, but the tool's real answer is *"somewhere between 16% and 62%."* That is an enormous span, and it is supposed to be. Five interviews out of fourteen pins down the truth very loosely. Anyone who quotes you a single confident percentage off a sample this size is showing you their arithmetic, not their evidence.
 
 **3. You can be sure about the comparison while still being unsure about the number.**
-This is the part that surprises people, and it is the whole point. The tool is **99.8% confident that Version 2 beats Version 1** — while flatly refusing to tell me whether Version 2's true rate is 20% or 55%. Those are two different questions. "Which one is better?" needs far less data than "exactly how good is it?", and only one of them was worth waiting for.
+The tool is **99.8% confident that Version 2 beats Version 1** — while flatly refusing to tell me whether Version 2's true rate is 20% or 55%. Those are two different questions. "Which one is better?" needs far less data than "exactly how good is it?", and only one of them was worth waiting for.
 
 So the decision was easy, even on a laughably small sample: **keep using Version 2, and stop spending applications on Version 1 to find out.** That is a conclusion I could act on the same afternoon. Pinning down the exact rate would have taken hundreds more applications, and I did not need it.
 
