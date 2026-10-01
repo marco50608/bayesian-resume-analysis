@@ -312,16 +312,70 @@ prior_mode = st.sidebar.radio(
     "1. Prior Belief Mode",
     PRIOR_MODES,
     index=_prior_idx,
-    help="Choose how to set your initial assumptions."
+    captions=[
+        "Set your own starting assumption below.",
+        "The neutral statistical default. Nudges slightly toward extreme rates.",
+        "No opinion — every rate from 0% to 100% equally likely.",
+    ],
+    help=(
+        "All three answer the same question: what do you believe about your "
+        "conversion rate BEFORE looking at your data?\n\n"
+        "**Flat (1, 1)** — every rate from 0% to 100% is equally plausible. "
+        "The most intuitive version of \"I have no idea\", and a safe default.\n\n"
+        "**Jeffreys (0.5, 0.5)** — the standard objective choice. It is *not* "
+        "flat: it puts slightly more weight near 0% and 100%. What makes it "
+        "neutral is that it gives the same answer whether you write the rate as "
+        "a percentage, as odds, or as log-odds — which the flat prior does not.\n\n"
+        "**Slider (Custom)** — encode a real expectation, e.g. \"this market is "
+        "brutal, I expect almost nobody to reply.\"\n\n"
+        "With plenty of data the choice barely matters. With a small sample it "
+        "matters more, which is exactly why this tool lets you change it."
+    ),
 )
 
 if prior_mode == "Slider (Custom)":
-    prior_alpha = st.sidebar.slider("Prior Successes (Alpha)", 1, 50, _qp_int("pa", 1, 1, 50))
-    prior_beta = st.sidebar.slider("Prior Failures (Beta)", 1, 50, _qp_int("pb", 1, 1, 50))
+    prior_alpha = st.sidebar.slider(
+        "Prior Successes (Alpha)", 1, 50, _qp_int("pa", 1, 1, 50),
+        help="Pretend successes. Raising this moves your starting assumption "
+             "toward a HIGHER conversion rate.",
+    )
+    prior_beta = st.sidebar.slider(
+        "Prior Failures (Beta)", 1, 50, _qp_int("pb", 1, 1, 50),
+        help="Pretend failures. Raising this moves your starting assumption "
+             "toward a LOWER, more pessimistic rate.",
+    )
+    # Translate (alpha, beta) into something a reader can picture. Beta(a, b)
+    # carries the same information as having already seen (a-1) successes and
+    # (b-1) failures, so say that out loud instead of leaving it as notation.
+    _ps, _pf = int(prior_alpha) - 1, int(prior_beta) - 1
+    _pn = _ps + _pf
+    if _pn == 0:
+        st.sidebar.caption(
+            "**You are assuming nothing.** Every rate from 0% to 100% starts out "
+            "equally likely, so your data decides the entire answer."
+        )
+    else:
+        st.sidebar.caption(
+            f"**Same as having already seen {_ps} interview"
+            f"{'' if _ps == 1 else 's'} in {_pn} application"
+            f"{'' if _pn == 1 else 's'}** — a starting assumption of "
+            f"**{prior_alpha / (prior_alpha + prior_beta):.1%}**. "
+            "The larger that pretend sample, the harder your real data has to "
+            "work to move the answer."
+        )
 elif prior_mode == "Jeffreys (0.5, 0.5)":
     prior_alpha, prior_beta = 0.5, 0.5
+    st.sidebar.caption(
+        "Symmetric around 50%, but U-shaped: extra weight on very low and very "
+        "high rates. Its appeal is consistency — it gives the same answer "
+        "however you express the rate."
+    )
 else:
     prior_alpha, prior_beta = 1.0, 1.0
+    st.sidebar.caption(
+        "Your data does all the work. This is the prior used throughout the "
+        "write-up this tool came from."
+    )
 
 st.sidebar.markdown("---")
 st.sidebar.header("📝 Strategy Data")
@@ -597,6 +651,9 @@ if st.session_state.run_analysis:
     _n_total = sum(r["effective_n"] for r in results)
     _k_total = sum(r["data"]["k"] for r in results)
     _runner = sorted_results[1] if len(sorted_results) > 1 else None
+    # Round once and use the same value for display AND for choosing the
+    # verdict, so a 0.946 can never show as "95%" beside a "not settled" box.
+    _pb = round(prob_best, 2) if len(results) > 1 else None
     if _runner is not None:
         _p_vs_runner = float((winner["samples"] > _runner["samples"]).mean())
 
@@ -607,7 +664,7 @@ if st.session_state.run_analysis:
                help=_wl if len(_wl) > 22 else None)
     if len(results) > 1:
         _c2.metric(
-            "Chance it really is the best", f"{prob_best:.0%}",
+            "Chance it really is the best", f"{_pb:.0%}",
             help="Probability that this version's TRUE rate is the highest of every "
                  "version you entered — not just that it looked best this time.",
         )
@@ -644,10 +701,10 @@ if st.session_state.run_analysis:
             f"Add a second version in the sidebar to find out whether a change you "
             f"made actually helped."
         )
-    elif prob_best >= 0.95:
+    elif _pb >= 0.95:
         st.success(
             f"**The data can tell your versions apart.** "
-            f"{winner['data']['label']} comes out on top in {prob_best:.0%} of the "
+            f"{winner['data']['label']} comes out on top in {_pb:.0%} of the "
             f"plausible worlds consistent with what you observed. That is strong "
             f"enough to act on: keep using it, and stop spending applications on the "
             f"others to find out.\n\n"
@@ -656,11 +713,11 @@ if st.session_state.run_analysis:
             f"[{winner['ci_lower']:.1%}, {winner['ci_upper']:.1%}] — the ranking is "
             f"solid, the exact number is not."
         )
-    elif prob_best >= 0.80:
+    elif _pb >= 0.80:
         st.warning(
             f"**Leaning, but not settled.** {winner['data']['label']} is ahead, and "
-            f"it is the best of your versions in {prob_best:.0%} of plausible worlds "
-            f"— which also means roughly a **{1 - prob_best:.0%} chance the ranking "
+            f"it is the best of your versions in {_pb:.0%} of plausible worlds "
+            f"— which also means roughly a **{1 - _pb:.0%} chance the ranking "
             f"is wrong** and something else is actually better.\n\n"
             f"That is usually worth acting on provisionally while you gather more "
             f"data, but it is not worth writing a blog post about yet."
@@ -669,8 +726,8 @@ if st.session_state.run_analysis:
         st.error(
             f"**Your data cannot yet tell these versions apart.** "
             f"{winner['data']['label']} has the highest average, but only a "
-            f"{prob_best:.0%} chance of genuinely being the best — which leaves a "
-            f"**{1 - prob_best:.0%} chance one of the others is actually better**. "
+            f"{_pb:.0%} chance of genuinely being the best — which leaves a "
+            f"**{1 - _pb:.0%} chance {'the other version' if len(results) == 2 else 'one of the others'} is actually better**. "
             f"An ordering that shaky can reverse on a handful of applications.\n\n"
             f"The honest conclusion right now is *\"I don't know yet\"*. That is a "
             f"real finding, not a failure: it stops you from switching strategy on "
@@ -678,7 +735,9 @@ if st.session_state.run_analysis:
             f"drawing a conclusion."
         )
 
-    if _runner is not None and 0.05 < _p_vs_runner < 0.95:
+    # With exactly two versions, "chance of being best" IS the head-to-head
+    # number, so this line would only repeat the box above.
+    if len(results) > 2 and _runner is not None and 0.05 < _p_vs_runner < 0.95:
         st.caption(
             f"⚖️ Head-to-head, **{winner['data']['label']}** beats "
             f"**{_runner['data']['label']}** in only {_p_vs_runner:.0%} of plausible "
@@ -687,7 +746,7 @@ if st.session_state.run_analysis:
 
     if _widest > 0.35:
         st.caption(
-            f"📏 Your widest range spans {_widest:.0%} percentage points. That is what "
+            f"📏 Your widest range spans {_widest * 100:.0f} percentage points. That is what "
             f"a small sample looks like — the width is the honest answer, and it "
             f"narrows with more applications, not with better maths."
         )
