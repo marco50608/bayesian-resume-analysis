@@ -624,6 +624,16 @@ if st.session_state.run_analysis:
     # Ensure minimum range of 0.2 so it doesn't look too zoomed in for low data
     view_range_max = max(0.2, view_range_max)
 
+    # Jeffreys gives a version with 0 interviews a Beta(0.5, ...) posterior,
+    # whose density rises without limit toward 0% (and Beta(..., 0.5) toward
+    # 100% when every application succeeded). Left alone, Plotly scales the
+    # y-axis to that spike and every other curve is flattened into the floor.
+    # Cap the axis at the tallest density found away from the two edges.
+    pdf_y_max = None
+    if any(r['post_alpha'] < 1 or r['post_beta'] < 1 for r in results):
+        _inner = (x >= 0.01) & (x <= 0.99)
+        pdf_y_max = 1.1 * max(float(np.nanmax(r['pdf_y'][_inner])) for r in results)
+
     # Calculate "Probability of Being Best" (Monte Carlo).
     # Earlier versions only compared the highest-mean strategy against the
     # runner-up, which overstates dominance when there are 3+ arms — beating
@@ -799,10 +809,17 @@ if st.session_state.run_analysis:
             yaxis_title="Probability Density",
             hovermode="x unified",
             xaxis=dict(tickformat=".0%", range=[0, view_range_max]),  # Dynamic range
+            yaxis=dict(range=[0, pdf_y_max]) if pdf_y_max is not None else dict(rangemode="tozero"),
             margin=dict(l=80, r=50, t=80, b=50),
             height=450
         )
         st.plotly_chart(fig_pdf, use_container_width=True)
+        if pdf_y_max is not None:
+            st.caption(
+                "ℹ️ With the Jeffreys prior, a version with zero interviews has a curve "
+                "that rises without limit at 0%. The chart cuts it off at the top so "
+                "the other curves stay visible. Only the drawing is affected, not the numbers."
+            )
         st.info(win_msg)
         
         st.markdown("""
